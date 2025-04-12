@@ -561,8 +561,3 @@ if __name__ == "__main__":
         number_plot_to_start=number_plot_to_start,
     )
     driver.quit()
-
-
-"""
-side_rise_inspection
-"""
