@@ -558,22 +558,6 @@ def moving_through_quality_checklist(
                 number_line += 1
                 continue
 
-            # elif "plot" in location_title:
-            #     # Выполнить клик на элементе "In Progress" на соответствующей строке number_line
-            #     driver = click_card_in_progress(driver, number_line)
-            #     # Если открыта новая (вторая) вкладка
-            #     if len(driver.window_handles) > 1:
-            #         new_tab = driver.window_handles[1]
-            #         # Переключаем контекст Selenium на новую вкладку
-            #         driver.switch_to.window(new_tab)
-            #         print(f"driver.window_handles is {driver.window_handles}")
-            #         # Ждать загрузки страницы
-            #         WebDriverWait(driver, 10).until(
-            #             EC.visibility_of_all_elements_located((By.TAG_NAME, "html"))
-            #         )
-            #         # Обрабоать страницу
-            #         driver = processs_form_qc4j_side_rise_rain_screen_firebreak(driver)
-
         number_line += 1
     return driver
 
