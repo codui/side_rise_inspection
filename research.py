@@ -155,17 +155,19 @@ def click_new_malden_quality_plan(driver):
 
 @check_session
 def edit_form(driver):
-    wait = WebDriverWait(driver, 7)
+    wait = WebDriverWait(driver, 10)
     # Получаем кнопку для редактирования формы
     btn_edit_form_xpath = '//*[@id="edit-ori-btn"]/i'
     btn_edit_form = wait.until(
         EC.element_to_be_clickable((By.XPATH, btn_edit_form_xpath))
     )
     btn_edit_form.click()
+    wait.until(EC.presence_of_element_located((By.TAG_NAME, "html")))
+
     print(f"edit_form {driver.window_handles=}")
     # Получаем поле ввода
     xpath = '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[1]/div/div[2]/div/div/div/input'
-    input = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
+    input = wait.until(EC.visibility_of_element_located((By.XPATH, xpath)))
     input.clear()
     input.send_keys("BMS01.G01")
     # Получаем кнопку обновить данные
@@ -195,8 +197,8 @@ def processs_form_qc4j_side_rise_rain_screen_firebreak(driver):
         # Если ячейка form_number не заполнена, а содержит лишь точку и возможно пробел
         if len(form_number.text) <= 2:
             # ! РАСКОМЕНТИРОВАТЬ ДЛЯ ВНЕСЕНИЯ ИНФЫ В ФОРМУ
-            # driver = edit_form(driver)
-            pass
+            driver = edit_form(driver)
+            # pass
         # Переключиться на главную страницу
         main_tab = driver.window_handles[0]
         driver.close()
@@ -589,3 +591,7 @@ if __name__ == "__main__":
         number_plot_to_start=number_plot_to_start,
     )
     driver.quit()
+
+    """
+    Start with block B Level 01 Plot 104
+    """
