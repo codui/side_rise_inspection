@@ -479,6 +479,7 @@ def moving_through_quality_checklist(
         if type(location_title) is str:
             location_title = location_title.lower()
             print(f"{location_title=}, {number_line=}")
+            # SECTION PROCESS "Block"
             # Если название ячейки содержит "block" и не указана буква блока с которого начинать работу
             if "block" in location_title and block_to_start is False:
                 driver = click_arrow_to_open_block(driver, number_line)
@@ -496,6 +497,7 @@ def moving_through_quality_checklist(
             ):
                 number_line += 1
                 continue
+            # SECTION PROCESS "Level"
             # Если название ячейки содержит "level" и не указана цифра уровня с которого начинать работу
             elif "level" in location_title and level_to_start is False:
                 driver = click_arrow_to_open_level(driver, number_line)
