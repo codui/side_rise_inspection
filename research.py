@@ -326,7 +326,7 @@ def get_letter_block_to_start() -> str:
             "You can press the letter in any register - lowercase or uppercase.\n\n"
             "If you want the program to process everything from the very beginning, \n"
             "then you don't need to enter anything, just press the 'Enter' key.\n\n"
-            "Please, make your choice: "
+            "Please enter the block letter: "
         )
         if len(letter_block_to_start) > 0:
             print(f"\nYou enter letter_block_to_start: {letter_block_to_start}")
@@ -359,7 +359,7 @@ def get_number_level_to_start() -> str:
             "Press one number on the keyboard.\n\n"
             "If you want the program to process everything from the very beginning, \n"
             "then you don't need to enter anything, just press the 'Enter' key.\n\n"
-            "Please, make your choice: "
+            "Please enter the level number: "
         )
         if 1 >= len(number_level_to_start) <= 2 and number_level_to_start != "0":
             get_number_level = True
@@ -396,9 +396,9 @@ def get_number_plot_to_start():
             "Press one number on the keyboard.\n\n"
             "If you want the program to process everything from the very beginning, \n"
             "then you don't need to enter anything, just press the 'Enter' key.\n\n"
-            "Please, make your choice: "
+            "Please enter the plot number: "
         )
-        if 1 >= len(number_plot_to_start) <= 2 and number_plot_to_start != "0":
+        if 1 <= len(number_plot_to_start) <= 2 and number_plot_to_start != "0":
             get_number_level = True
             print(f"\nYou enter number_plot_to_start: {number_plot_to_start}")
             print(
@@ -418,6 +418,7 @@ def get_number_plot_to_start():
     )
 
 
+@check_session
 def scroll_to_location_title(driver, number_line: int):
     wait = WebDriverWait(driver, 10)
     location_cell_xpath = (
@@ -430,6 +431,19 @@ def scroll_to_location_title(driver, number_line: int):
     # Скрол до нужного элемента с Python или с Javascript
     # driver.execute_script("arguments[0].scrollIntoView(true);", btn_open_new_tab)
     ActionChains(driver).scroll_to_element(location_title).perform()
+    return driver
+
+
+@check_session
+def switch_to_new_tab(driver):
+    new_tab = driver.window_handles[1]
+    # Переключаем контекст Selenium на новую вкладку
+    driver.switch_to.window(new_tab)
+    print(f"driver.window_handles is {driver.window_handles}")
+    # Ждать загрузки страницы
+    WebDriverWait(driver, 10).until(
+        EC.visibility_of_all_elements_located((By.TAG_NAME, "html"))
+    )
     return driver
 
 
@@ -479,58 +493,71 @@ def moving_through_quality_checklist(
         if type(location_title) is str:
             location_title = location_title.lower()
             print(f"{location_title=}, {number_line=}")
-            # SECTION PROCESS "Block"
-            # Если название ячейки содержит "block" и не указана буква блока с которого начинать работу
+            # ! SECTION PROCESS "Block"
+            # Если название ячейки содержит "block" и не указана буква block с которого начинать работу
             if "block" in location_title and block_to_start is False:
                 driver = click_arrow_to_open_block(driver, number_line)
-            # Если название ячейки содержит "block" и букву блока с которого начинать работу
+            # Если название ячейки содержит "block" и букву block с которого начинать работу
             elif (
                 location_title == f"block {letter_block_to_start}"
                 and block_to_start is True
             ):
                 block_to_start = False
                 driver = click_arrow_to_open_block(driver, number_line)
-            # Если название ячейки содержит "block" и не содержит букву блока с которого начинать работу
+            # Если название ячейки "block" не соответствует букве block с которого начинать работу
             elif (
                 location_title != f"block {letter_block_to_start}"
                 and block_to_start is True
             ):
                 number_line += 1
                 continue
-            # SECTION PROCESS "Level"
-            # Если название ячейки содержит "level" и не указана цифра уровня с которого начинать работу
+            # ! SECTION PROCESS "Level"
+            # Если название ячейки содержит "level" и не указана цифра level с которого начинать работу
             elif "level" in location_title and level_to_start is False:
                 driver = click_arrow_to_open_level(driver, number_line)
-            # Если название ячейки содержит "level" и указана цифра уровня с которого начинать работу
+            # Если название ячейки содержит "level" и указана цифра level с которого начинать работу
             elif (
                 location_title == f"level {number_level_to_start}"
                 and level_to_start is True
             ):
                 level_to_start = False
                 driver = click_arrow_to_open_level(driver, number_line)
-            # Если название ячейки содержит "level" и указана цифра уровня с которого начинать работу
+            # Если название ячейки "level" не соответствует цифре level с которого начинать работу
             elif (
                 location_title != f"level {number_level_to_start}"
                 and level_to_start is True
             ):
                 number_line += 1
                 continue
-            # Если нужно сделать клик на элемент "In Progress"
-            elif "plot" in location_title:
+            # ! SECTION PROCESS "Plot"
+            # Если название ячейки "plot" и не указана цифра plot с которой начинать работу
+            elif "plot" in location_title and plot_to_start is False:
                 # Выполнить клик на элементе "In Progress" на соответствующей строке number_line
                 driver = click_card_in_progress(driver, number_line)
                 # Если открыта новая (вторая) вкладка
                 if len(driver.window_handles) > 1:
-                    new_tab = driver.window_handles[1]
-                    # Переключаем контекст Selenium на новую вкладку
-                    driver.switch_to.window(new_tab)
-                    print(f"driver.window_handles is {driver.window_handles}")
-                    # Ждать загрузки страницы
-                    WebDriverWait(driver, 10).until(
-                        EC.visibility_of_all_elements_located((By.TAG_NAME, "html"))
-                    )
+                    # Переключиться на новую вкладку
+                    driver = switch_to_new_tab(driver)
                     # Обрабоать страницу
                     driver = processs_form_qc4j_side_rise_rain_screen_firebreak(driver)
+            # Если название ячейки "plot" и соответствует цифре plot с которой начинать работу
+            elif (
+                location_title == f"plot {number_plot_to_start}"
+                and plot_to_start is True
+            ):
+                plot_to_start = False
+                driver = click_card_in_progress(driver, number_line)
+                if len(driver.window_handles) > 1:
+                    driver = switch_to_new_tab(driver)
+                    driver = processs_form_qc4j_side_rise_rain_screen_firebreak(driver)
+            # Если название ячейки "plot" не соответствует цифре plot с которой начинать работу
+            elif (
+                location_title != f"plot {number_plot_to_start}"
+                and plot_to_start is True
+            ):
+                number_line += 1
+                continue
+
         number_line += 1
     return driver
 
@@ -557,7 +584,6 @@ if __name__ == "__main__":
 
     driver = moving_through_quality_checklist(
         driver,
-        2,
         letter_block_to_start=letter_block_to_start,
         number_level_to_start=number_level_to_start,
         number_plot_to_start=number_plot_to_start,
