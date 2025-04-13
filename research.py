@@ -176,7 +176,6 @@ def edit_form(driver):
     btn_update.click()
     # Ждем пока страница обновится после нажатия кнопки
     wait.until(EC.presence_of_element_located((By.TAG_NAME, "html")))
-    time.sleep(1)
     return driver
 
 
@@ -211,7 +210,7 @@ def get_location_title(driver, number_line):
     """
     Функция получает название объекта в таблице сайта (дом или этаж или квартира)
     """
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 5)
     location_cell_xpath = (
         f'//*[@id="table_body_header_scroller"]/div/div[{number_line}]'
     )
@@ -221,8 +220,6 @@ def get_location_title(driver, number_line):
     location_title = location_cell.find_element(
         By.CLASS_NAME, "location-title"
     ).get_attribute("title")
-
-    print(f"{location_title=}")
     return (driver, location_title)
 
 
@@ -265,23 +262,26 @@ def click_arrow_to_open_level(driver, number_line):
         driver - драйвер Selenium
         number_line - номер рядка в таблице сайта
     """
-    wait = WebDriverWait(driver, 10)
-    arrow_open_level_xpath = (
-        f'//*[@id="table_body_header_scroller"]/div/div[{number_line}]/div/i'
-    )
-    # Ждем пока элемент стрелка станет кликабельной
-    arrow_open_level = wait.until(
-        EC.element_to_be_clickable((By.XPATH, arrow_open_level_xpath))
-    )
-    # Кликаем по стрелке
-    arrow_open_level.click()
-    # Ждем пока в элементе появится класс chevron-up.
-    # Это значит что список элементов раскрылся и можно дальше работать без time.sleep(6)
-    wait.until(
-        EC.text_to_be_present_in_element_attribute(
-            (By.XPATH, arrow_open_level_xpath), "class", "chevron-up"
+    try:
+        wait = WebDriverWait(driver, 5)
+        arrow_open_level_xpath = (
+            f'//*[@id="table_body_header_scroller"]/div/div[{number_line}]/div/i'
         )
-    )
+        # Ждем пока элемент стрелка станет кликабельной
+        arrow_open_level = wait.until(
+            EC.element_to_be_clickable((By.XPATH, arrow_open_level_xpath))
+        )
+        # Кликаем по стрелке
+        arrow_open_level.click()
+        # Ждем пока в элементе появится класс chevron-up.
+        # Это значит что список элементов раскрылся и можно дальше работать без time.sleep(6)
+        wait.until(
+            EC.text_to_be_present_in_element_attribute(
+                (By.XPATH, arrow_open_level_xpath), "class", "chevron-up"
+            )
+        )
+    except Exception:
+        return driver
     return driver
 
 
@@ -291,10 +291,6 @@ def click_card_in_progress(driver, number_line):
     card_in_progress_xpath = (
         f'//*[@id="table_body_content_scroller"]/div/div[{number_line}]/div/div[34]'
     )
-    # card_in_progress = wait.until(
-    #     EC.visibility_of_element_located((By.XPATH, card_in_progress_xpath))
-    # ).find_element(By.CSS_SELECTOR, "span.ng-star-inserted")
-
     card_in_progress = wait.until(
         EC.visibility_of_element_located((By.XPATH, card_in_progress_xpath))
     )
@@ -363,7 +359,7 @@ def get_number_level_to_start() -> str:
             "then you don't need to enter anything, just press the 'Enter' key.\n\n"
             "Please enter the level number: "
         )
-        if 1 >= len(number_level_to_start) <= 2 and number_level_to_start != "0":
+        if 1 <= len(number_level_to_start) <= 2 and number_level_to_start != "0":
             get_number_level = True
             print(f"\nYou enter number_level_to_start: {number_level_to_start}")
             print(
@@ -400,7 +396,7 @@ def get_number_plot_to_start():
             "then you don't need to enter anything, just press the 'Enter' key.\n\n"
             "Please enter the plot number: "
         )
-        if 1 <= len(number_plot_to_start) <= 2 and number_plot_to_start != "0":
+        if 1 <= len(number_plot_to_start) <= 3 and number_plot_to_start != "0":
             get_number_level = True
             print(f"\nYou enter number_plot_to_start: {number_plot_to_start}")
             print(
@@ -495,7 +491,7 @@ def moving_through_quality_checklist(
         if type(location_title) is str:
             location_title = location_title.lower()
             print(f"{location_title=}, {number_line=}")
-            # ! SECTION PROCESS "Block"
+            # ! PROCESS SECTION "Block"
             # Если название ячейки содержит "block" и не указана буква block с которого начинать работу
             if "block" in location_title and block_to_start is False:
                 driver = click_arrow_to_open_block(driver, number_line)
@@ -513,7 +509,7 @@ def moving_through_quality_checklist(
             ):
                 number_line += 1
                 continue
-            # ! SECTION PROCESS "Level"
+            # ! PROCESS SECTION "Level"
             # Если название ячейки содержит "level" и не указана цифра level с которого начинать работу
             elif "level" in location_title and level_to_start is False:
                 driver = click_arrow_to_open_level(driver, number_line)
@@ -531,7 +527,7 @@ def moving_through_quality_checklist(
             ):
                 number_line += 1
                 continue
-            # ! SECTION PROCESS "Plot"
+            # ! PROCESS SECTION "Plot"
             # Если название ячейки "plot" и не указана цифра plot с которой начинать работу
             elif "plot" in location_title and plot_to_start is False:
                 # Выполнить клик на элементе "In Progress" на соответствующей строке number_line
@@ -591,7 +587,3 @@ if __name__ == "__main__":
         number_plot_to_start=number_plot_to_start,
     )
     driver.quit()
-
-    """
-    Start with block B Level 01 Plot 104
-    """
