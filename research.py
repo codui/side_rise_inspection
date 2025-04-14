@@ -2,6 +2,7 @@
 import os
 import time
 from functools import wraps
+from typing import Callable
 
 from dotenv import load_dotenv
 from selenium import webdriver
@@ -210,7 +211,7 @@ def get_location_title(driver, number_line):
     """
     Функция получает название объекта в таблице сайта (дом или этаж или квартира)
     """
-    wait = WebDriverWait(driver, 5)
+    wait = WebDriverWait(driver, 10)
     location_cell_xpath = (
         f'//*[@id="table_body_header_scroller"]/div/div[{number_line}]'
     )
@@ -417,6 +418,23 @@ def get_number_plot_to_start():
 
 
 @check_session
+def set_color_to_element(driver, element, color: str = "#5cc695") -> webdriver.Chrome:
+    original_style = element.get_attribute("style")
+    # Подсветить активный элемент
+    driver.execute_script(
+        "arguments[0].setAttribute('style', arguments[1]);",
+        element,
+        f"background: {color}",
+    )
+    time.sleep(1)
+    # Возврат к оригинальному стилю
+    driver.execute_script(
+        "arguments[0].setAttribute('style', arguments[1]);", element, original_style
+    )
+    return driver
+
+
+@check_session
 def scroll_to_location_title(driver, number_line: int):
     wait = WebDriverWait(driver, 10)
     location_cell_xpath = (
@@ -429,6 +447,7 @@ def scroll_to_location_title(driver, number_line: int):
     # Скрол до нужного элемента с Python или с Javascript
     # driver.execute_script("arguments[0].scrollIntoView(true);", btn_open_new_tab)
     ActionChains(driver).scroll_to_element(location_title).perform()
+    driver = set_color_to_element(driver, location_title, "#7ff6bf")
     return driver
 
 
@@ -449,9 +468,9 @@ def switch_to_new_tab(driver):
 def moving_through_quality_checklist(
     driver,
     number_line: int = 2,
-    letter_block_to_start: str = "",
-    number_level_to_start: str = "",
-    number_plot_to_start: str = "",
+    letter_block_to_start: str | bool = False,
+    number_level_to_start: str | bool = False,
+    number_plot_to_start: str | bool = False,
 ):
     """
     Функция перемещается по рядам таблицы сайта от 2-й и до конца.
@@ -460,102 +479,45 @@ def moving_through_quality_checklist(
         driver - драйвер Selenium
         number_line - номер рядка в таблице сайта
     """
-    # Если не указана буква block с которого начинать то скрипт начинает с "Block А"
-    if letter_block_to_start == "":
-        block_to_start: bool = False
-    # Иначе скрипт начинает работу с указанного block
-    else:
-        block_to_start: bool = True
-
-    # Если не указана цифра level (этажа) с которого начинать, то скрипт начинает с "Level 01"
-    if number_level_to_start == "":
-        level_to_start: bool = False
-    # Иначе скрипт начинает работу с указанного level
-    else:
-        level_to_start: bool = True
-
-    # Если не указана цифра plot с которого начинать то скрипт начинает с "Plot 01"
-    if number_plot_to_start == "":
-        plot_to_start: bool = False
-    # Иначе скрипт начинает работу с указанного plot
-    else:
-        plot_to_start: bool = True
-
     # Слово для остановки работы скрипта
     stop_word: bool = True
+    click_on: dict[str, Callable[[webdriver.Chrome, int], webdriver.Chrome]] = {
+        "block": click_arrow_to_open_block,
+        "level": click_arrow_to_open_level,
+        "plot": click_card_in_progress,
+    }
     while stop_word:
         # Получить название текущей ячейки - Block, Level (этаж), Plot (квартира)
         driver, location_title = get_location_title(driver, number_line)
         driver = scroll_to_location_title(driver, number_line)
-
         if type(location_title) is str:
             location_title = location_title.lower()
             print(f"{location_title=}, {number_line=}")
-            # ! PROCESS SECTION "Block"
-            # Если название ячейки содержит "block" и не указана буква block с которого начинать работу
-            if "block" in location_title and block_to_start is False:
-                driver = click_arrow_to_open_block(driver, number_line)
-            # Если название ячейки содержит "block" и букву block с которого начинать работу
-            elif (
-                location_title == f"block {letter_block_to_start}"
-                and block_to_start is True
-            ):
-                block_to_start = False
-                driver = click_arrow_to_open_block(driver, number_line)
-            # Если название ячейки "block" не соответствует букве block с которого начинать работу
-            elif (
-                location_title != f"block {letter_block_to_start}"
-                and block_to_start is True
-            ):
-                number_line += 1
-                continue
-            # ! PROCESS SECTION "Level"
-            # Если название ячейки содержит "level" и не указана цифра level с которого начинать работу
-            elif "level" in location_title and level_to_start is False:
-                driver = click_arrow_to_open_level(driver, number_line)
-            # Если название ячейки содержит "level" и указана цифра level с которого начинать работу
-            elif (
-                location_title == f"level {number_level_to_start}"
-                and level_to_start is True
-            ):
-                level_to_start = False
-                driver = click_arrow_to_open_level(driver, number_line)
-            # Если название ячейки "level" не соответствует цифре level с которого начинать работу
-            elif (
-                location_title != f"level {number_level_to_start}"
-                and level_to_start is True
-            ):
-                number_line += 1
-                continue
-            # ! PROCESS SECTION "Plot"
-            # Если название ячейки "plot" и не указана цифра plot с которой начинать работу
-            elif "plot" in location_title and plot_to_start is False:
-                # Выполнить клик на элементе "In Progress" на соответствующей строке number_line
-                driver = click_card_in_progress(driver, number_line)
-                # Если открыта новая (вторая) вкладка
-                if len(driver.window_handles) > 1:
-                    # Переключиться на новую вкладку
-                    driver = switch_to_new_tab(driver)
-                    # Обрабоать страницу
-                    driver = processs_form_qc4j_side_rise_rain_screen_firebreak(driver)
-            # Если название ячейки "plot" и соответствует цифре plot с которой начинать работу
-            elif (
-                location_title == f"plot {number_plot_to_start}"
-                and plot_to_start is True
-            ):
-                plot_to_start = False
-                driver = click_card_in_progress(driver, number_line)
-                if len(driver.window_handles) > 1:
-                    driver = switch_to_new_tab(driver)
-                    driver = processs_form_qc4j_side_rise_rain_screen_firebreak(driver)
-            # Если название ячейки "plot" не соответствует цифре plot с которой начинать работу
-            elif (
-                location_title != f"plot {number_plot_to_start}"
-                and plot_to_start is True
-            ):
-                number_line += 1
-                continue
-
+            # ! PROCESS SECTION Block
+            if "block" in location_title:
+                if not letter_block_to_start:
+                    driver = click_on["block"](driver, number_line)
+                elif location_title == f"block {letter_block_to_start}":
+                    letter_block_to_start = False
+                    driver = click_on["block"](driver, number_line)
+            # ! PROCESS SECTION Level
+            elif "level" in location_title:
+                if not number_level_to_start:
+                    driver = click_on["level"](driver, number_line)
+                elif location_title == f"level {number_level_to_start}":
+                    number_level_to_start = False
+                    driver = click_on["level"](driver, number_line)
+            # ! PROCESS SECTION Plot
+            elif "plot" in location_title:
+                if not number_plot_to_start or location_title == f"plot {number_plot_to_start}":
+                    number_plot_to_start = False
+                    driver = click_on["plot"](driver, number_line)
+                    # Если открыта новая (вторая) вкладка
+                    if len(driver.window_handles) > 1:
+                        # Переключиться на новую вкладку
+                        driver = switch_to_new_tab(driver)
+                        # Обрабоать страницу
+                        driver = processs_form_qc4j_side_rise_rain_screen_firebreak(driver)
         number_line += 1
     return driver
 
