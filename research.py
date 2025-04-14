@@ -154,9 +154,16 @@ def click_new_malden_quality_plan(driver):
     return driver
 
 
+def insert_data_into_field(wait: WebDriverWait, field_input_xpath: str, data: str):
+    # Получаем поле ввода input_contractors_q_a_form_ref_numb и заполняем его
+    input = wait.until(EC.visibility_of_element_located((By.XPATH, field_input_xpath)))
+    input.clear()
+    input.send_keys(data)
+
+
 @check_session
 def edit_form(driver):
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 12)
     # Получаем кнопку для редактирования формы
     btn_edit_form_xpath = '//*[@id="edit-ori-btn"]/i'
     btn_edit_form = wait.until(
@@ -166,17 +173,30 @@ def edit_form(driver):
     wait.until(EC.presence_of_element_located((By.TAG_NAME, "html")))
 
     print(f"edit_form {driver.window_handles=}")
-    # Получаем поле ввода
-    xpath = '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[1]/div/div[2]/div/div/div/input'
-    input = wait.until(EC.visibility_of_element_located((By.XPATH, xpath)))
-    input.clear()
-    input.send_keys("BMS01.G01")
-    # Получаем кнопку обновить данные
+    xpaths = (
+        '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[1]/div/div[2]/div/div/div/input',
+        '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[2]/div/div[2]/div/div/div/input',
+        '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[4]/div/div[2]/div/div/div/input',
+    )
+    contractors_q_a_form_ref_numb_xpath = xpaths[0]
+    contractors_q_a_form_name_title_xpath = xpaths[1]
+    area_of_inspection_xpath = xpaths[2]
+    # ! Заполняем поле ввода contractors_q_a_form_ref_numb_xpath
+    insert_data_into_field(wait, contractors_q_a_form_ref_numb_xpath, "BMS01.G01")
+    # ! Заполняем поле ввода contractors_q_a_form_name_title_xpath
+    insert_data_into_field(wait, contractors_q_a_form_name_title_xpath, "Quality policy")
+    # ! Заполняем поле ввода area_of_inspection_xpath
+    insert_data_into_field(wait, area_of_inspection_xpath, "E Refuse")
+    # Получаем кнопку "Update" и делаем на ней клик
     btn_update_xpath = '//*[@id="btnSaveForm"]'
     btn_update = wait.until(EC.element_to_be_clickable((By.XPATH, btn_update_xpath)))
     btn_update.click()
     # Ждем пока страница обновится после нажатия кнопки
-    wait.until(EC.presence_of_element_located((By.TAG_NAME, "html")))
+    wait.until(
+        EC.text_to_be_present_in_element_attribute(
+            (By.XPATH, "//*[@id='formWrapper']/div[2]"), "class", "loaded"
+        )
+    )
     return driver
 
 
@@ -509,7 +529,10 @@ def moving_through_quality_checklist(
                     driver = click_on["level"](driver, number_line)
             # ! PROCESS SECTION Plot
             elif "plot" in location_title:
-                if not number_plot_to_start or location_title == f"plot {number_plot_to_start}":
+                if (
+                    not number_plot_to_start
+                    or location_title == f"plot {number_plot_to_start}"
+                ):
                     number_plot_to_start = False
                     driver = click_on["plot"](driver, number_line)
                     # Если открыта новая (вторая) вкладка
@@ -517,7 +540,9 @@ def moving_through_quality_checklist(
                         # Переключиться на новую вкладку
                         driver = switch_to_new_tab(driver)
                         # Обрабоать страницу
-                        driver = processs_form_qc4j_side_rise_rain_screen_firebreak(driver)
+                        driver = processs_form_qc4j_side_rise_rain_screen_firebreak(
+                            driver
+                        )
         number_line += 1
     return driver
 
