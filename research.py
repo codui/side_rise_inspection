@@ -154,11 +154,27 @@ def click_new_malden_quality_plan(driver):
     return driver
 
 
-def insert_data_into_field(wait: WebDriverWait, field_input_xpath: str, data: str):
+@check_session
+def set_color_to_element(driver, element, color: str = "#5cc695") -> webdriver.Chrome:
+    original_style = element.get_attribute("style")
+    # Подсветить активный элемент
+    driver.execute_script(
+        "arguments[0].setAttribute('style', arguments[1]);",
+        element,
+        f"background: {color}",
+    )
+    time.sleep(1)
+    # Возврат к оригинальному стилю
+    driver.execute_script(
+        "arguments[0].setAttribute('style', arguments[1]);", element, original_style
+    )
+    return driver
+
+
+def insert_data_into_field(field, data: str):
     # Получаем поле ввода input_contractors_q_a_form_ref_numb и заполняем его
-    input = wait.until(EC.visibility_of_element_located((By.XPATH, field_input_xpath)))
-    input.clear()
-    input.send_keys(data)
+    field.clear()
+    field.send_keys(data)
 
 
 @check_session
@@ -177,16 +193,64 @@ def edit_form(driver):
         '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[1]/div/div[2]/div/div/div/input',
         '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[2]/div/div[2]/div/div/div/input',
         '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[4]/div/div[2]/div/div/div/input',
+        '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[2]/div/div[8]/div/div[2]//div[contains(@class, "comment-section")]',
     )
     contractors_q_a_form_ref_numb_xpath = xpaths[0]
     contractors_q_a_form_name_title_xpath = xpaths[1]
     area_of_inspection_xpath = xpaths[2]
+    check_comment_field_xpath = xpaths[3]
     # ! Заполняем поле ввода contractors_q_a_form_ref_numb_xpath
-    insert_data_into_field(wait, contractors_q_a_form_ref_numb_xpath, "BMS01.G01")
-    # ! Заполняем поле ввода contractors_q_a_form_name_title_xpath
-    insert_data_into_field(wait, contractors_q_a_form_name_title_xpath, "Quality policy")
-    # ! Заполняем поле ввода area_of_inspection_xpath
-    insert_data_into_field(wait, area_of_inspection_xpath, "E Refuse")
+    contractors_q_a_form_ref_numb = wait.until(
+        EC.visibility_of_element_located(
+            (By.XPATH, contractors_q_a_form_ref_numb_xpath)
+        )
+    )
+    if len(contractors_q_a_form_ref_numb.text) <= 2:
+        insert_data_into_field(contractors_q_a_form_ref_numb, "BMS01.G01")
+    # ! Заполняем поле ввода contractors_q_a_form_name_title
+    contractors_q_a_form_name_title = wait.until(
+        EC.visibility_of_element_located(
+            (By.XPATH, contractors_q_a_form_name_title_xpath)
+        )
+    )
+    if len(contractors_q_a_form_name_title.text) <= 2:
+        insert_data_into_field(contractors_q_a_form_name_title, "Quality policy")
+
+    # # ! Уточнить чем заполнять поле ввода area_of_inspection
+    # area_of_inspection = wait.until(
+    #     EC.visibility_of_element_located((By.XPATH, area_of_inspection_xpath))
+    # )
+    # if len(area_of_inspection.text) <= 2:
+    #     insert_data_into_field(area_of_inspection, ".")
+
+    # ! Проверяем поле ввода check_comment_field
+    check_comment_field = driver.find_elements(By.XPATH, check_comment_field_xpath)
+    print(f"{len(check_comment_field)=}")
+    # Если нет комментариев
+    if len(check_comment_field) == 0:
+        # Найти кнопку создания комментария
+        btn_create_comment_xpath = '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[2]/div/div[8]/div/div[1]/div[2]/div[1]/div[2]/button'
+        btn_create_comment = wait.until(
+            EC.element_to_be_clickable((By.XPATH, btn_create_comment_xpath))
+        )
+        # Проскролить к кнопке чтобы её было видно и кликнуть по ней
+        actions = ActionChains(driver)
+        actions.scroll_to_element(btn_create_comment).perform()
+        actions.scroll_by_amount(0, 200).perform()
+        # time.sleep(1)
+        btn_create_comment.click()
+        # Находим поле комментариев
+        field_to_insert_comment_xpath = '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[2]/div/div[8]/div/div[2]//div[contains(@class, "comment-section")]/div[2]/textarea'
+        field_to_insert_comment = driver.find_element(
+            By.XPATH, field_to_insert_comment_xpath
+        )
+        # Вставляем данные в комментарии
+        insert_data_into_field(
+            field_to_insert_comment,
+            "ITP and PQP uploaded on Asite\n"
+            "H8499-LEM-SW-ZZ-QA-CT-19715 PQP\n"
+            "H8499-LEM-SW-ZZ-QA-CO-LM123 ITP\n",
+        )
     # Получаем кнопку "Update" и делаем на ней клик
     btn_update_xpath = '//*[@id="btnSaveForm"]'
     btn_update = wait.until(EC.element_to_be_clickable((By.XPATH, btn_update_xpath)))
@@ -207,18 +271,42 @@ def processs_form_qc4j_side_rise_rain_screen_firebreak(driver):
     project_title = wait.until(
         EC.visibility_of_element_located((By.XPATH, project_title_xpath))
     )
+    # Проверить что открыта форма правильного столбца
     if "qc4j side-rise rain-screen firebreak" in project_title.text.lower():
         form_number_xpath = '//*[@id="formWrapper"]/div[2]/section[2]/section[1]/div/div/div[1]/div/div[2]/div/div/div'
         form_number = wait.until(
             EC.visibility_of_element_located((By.XPATH, form_number_xpath))
         )
-        print(f"{form_number.text=}")
-        time.sleep(1)
-        # Если ячейка form_number не заполнена, а содержит лишь точку и возможно пробел
-        if len(form_number.text) <= 2:
-            # ! РАСКОМЕНТИРОВАТЬ ДЛЯ ВНЕСЕНИЯ ИНФЫ В ФОРМУ
+        form_name_xpath = '//*[@id="formWrapper"]/div[2]/section[2]/section[1]/div/div/div[2]/div/div[2]/div/div/div'
+        form_name = wait.until(
+            EC.visibility_of_element_located((By.XPATH, form_name_xpath))
+        )
+        area_inspect_xpath = '//*[@id="formWrapper"]/div[2]/section[2]/section[1]/div/div/div[4]/div/div[2]/div/div/div'
+        area_inspect = wait.until(
+            EC.visibility_of_element_located((By.XPATH, area_inspect_xpath))
+        )
+
+        comment_xpath = '//*[@id="formWrapper"]/div[2]/section[2]/section[2]/div/div[8]//div[contains(@class, "comment-section")]'
+        comments = driver.find_elements(By.XPATH, comment_xpath)
+        # Проверяем поля ввода на отсутствие текста
+        elements_to_check_for_edit = (
+            form_number,
+            form_name,
+            area_inspect,
+            comments,
+        )
+        print(f"{comments=}, {len(comments)=}")
+
+        is_edit = any(
+            len(element) == 0 if type(element) is list else len(element.text) <= 2
+            for element in elements_to_check_for_edit
+        )
+        # Если хоть одне полне не заполнено, а содержит лишь точку и возможно пробел то редактировать
+        if is_edit:
+            # ВНЕСЕНИЕ ИНФЫ В ФОРМУ
             driver = edit_form(driver)
             # pass
+
         # Переключиться на главную страницу
         main_tab = driver.window_handles[0]
         driver.close()
@@ -310,8 +398,9 @@ def click_arrow_to_open_level(driver, number_line):
 def click_card_in_progress(driver, number_line):
     wait = WebDriverWait(driver, 10)
     card_in_progress_xpath = (
-        f'//*[@id="table_body_content_scroller"]/div/div[{number_line}]/div/div[34]'
+        f'//*[@id="table_body_content_scroller"]/div/div[{number_line}]/div/div[36]'
     )
+    # '//*[@id="table_body_content_scroller"]/div/div[5]/div/div[36]'
     card_in_progress = wait.until(
         EC.visibility_of_element_located((By.XPATH, card_in_progress_xpath))
     )
@@ -321,7 +410,7 @@ def click_card_in_progress(driver, number_line):
         # Скрол до нужного элемента с Python или с Javascript
         # driver.execute_script("arguments[0].scrollIntoView(true);", btn_open_new_tab)
         ActionChains(driver).scroll_to_element(card_in_progress).perform()
-        time.sleep(0.5)
+        time.sleep(1)
         wait.until(
             EC.element_to_be_clickable((By.CSS_SELECTOR, "span.ng-star-inserted"))
         )
@@ -438,23 +527,6 @@ def get_number_plot_to_start():
 
 
 @check_session
-def set_color_to_element(driver, element, color: str = "#5cc695") -> webdriver.Chrome:
-    original_style = element.get_attribute("style")
-    # Подсветить активный элемент
-    driver.execute_script(
-        "arguments[0].setAttribute('style', arguments[1]);",
-        element,
-        f"background: {color}",
-    )
-    time.sleep(1)
-    # Возврат к оригинальному стилю
-    driver.execute_script(
-        "arguments[0].setAttribute('style', arguments[1]);", element, original_style
-    )
-    return driver
-
-
-@check_session
 def scroll_to_location_title(driver, number_line: int):
     wait = WebDriverWait(driver, 10)
     location_cell_xpath = (
@@ -501,11 +573,6 @@ def moving_through_quality_checklist(
     """
     # Слово для остановки работы скрипта
     stop_word: bool = True
-    click_on: dict[str, Callable[[webdriver.Chrome, int], webdriver.Chrome]] = {
-        "block": click_arrow_to_open_block,
-        "level": click_arrow_to_open_level,
-        "plot": click_card_in_progress,
-    }
     while stop_word:
         # Получить название текущей ячейки - Block, Level (этаж), Plot (квартира)
         driver, location_title = get_location_title(driver, number_line)
@@ -516,29 +583,35 @@ def moving_through_quality_checklist(
             # ! PROCESS SECTION Block
             if "block" in location_title:
                 if not letter_block_to_start:
-                    driver = click_on["block"](driver, number_line)
+                    driver = click_arrow_to_open_block(driver, number_line)
                 elif location_title == f"block {letter_block_to_start}":
                     letter_block_to_start = False
-                    driver = click_on["block"](driver, number_line)
+                    driver = click_arrow_to_open_block(driver, number_line)
             # ! PROCESS SECTION Level
             elif "level" in location_title:
                 if not number_level_to_start:
-                    driver = click_on["level"](driver, number_line)
+                    driver = click_arrow_to_open_level(driver, number_line)
                 elif location_title == f"level {number_level_to_start}":
                     number_level_to_start = False
-                    driver = click_on["level"](driver, number_line)
+                    driver = click_arrow_to_open_level(driver, number_line)
             # ! PROCESS SECTION Plot
             elif "plot" in location_title:
                 if (
                     not number_plot_to_start
                     or location_title == f"plot {number_plot_to_start}"
                 ):
+
+                    # ! REMOVE THIS
+                    if location_title == "plot 04":
+                        break
+
                     number_plot_to_start = False
-                    driver = click_on["plot"](driver, number_line)
+                    driver = click_card_in_progress(driver, number_line)
                     # Если открыта новая (вторая) вкладка
                     if len(driver.window_handles) > 1:
                         # Переключиться на новую вкладку
                         driver = switch_to_new_tab(driver)
+                        # time.sleep(1)
                         # Обрабоать страницу
                         driver = processs_form_qc4j_side_rise_rain_screen_firebreak(
                             driver
