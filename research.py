@@ -237,8 +237,8 @@ def edit_form(driver):
         actions = ActionChains(driver)
         actions.scroll_to_element(btn_create_comment).perform()
         actions.scroll_by_amount(0, 200).perform()
-        # time.sleep(1)
         btn_create_comment.click()
+
         # Находим поле комментариев
         field_to_insert_comment_xpath = '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[2]/div/div[8]/div/div[2]//div[contains(@class, "comment-section")]/div[2]/textarea'
         field_to_insert_comment = driver.find_element(
@@ -251,6 +251,7 @@ def edit_form(driver):
             "H8499-LEM-SW-ZZ-QA-CT-19715 PQP\n"
             "H8499-LEM-SW-ZZ-QA-CO-LM123 ITP\n",
         )
+        time.sleep(1)
     # Получаем кнопку "Update" и делаем на ней клик
     btn_update_xpath = '//*[@id="btnSaveForm"]'
     btn_update = wait.until(EC.element_to_be_clickable((By.XPATH, btn_update_xpath)))
@@ -602,7 +603,7 @@ def moving_through_quality_checklist(
                 ):
 
                     # ! REMOVE THIS
-                    if location_title == "plot 04":
+                    if location_title == "plot 06":
                         break
 
                     number_plot_to_start = False
