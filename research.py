@@ -2,6 +2,7 @@
 import os
 import time
 from functools import wraps
+from pathlib import Path
 from pprint import pprint
 from typing import Callable
 
@@ -456,19 +457,19 @@ def click_arrow_to_open_level(driver, number_line):
 
 @check_session
 def click_card_in_progress(driver, element):
-    element.find_element(By.CSS_SELECTOR, "span.ng-star-inserted")
-    # Скрол до нужного элемента с Python или с Javascript
-    # driver.execute_script("arguments[0].scrollIntoView(true);", btn_open_new_tab)
-    ActionChains(driver).scroll_to_element(element).perform()
-    time.sleep(1)
-    WebDriverWait(driver, 10).until(
-        EC.element_to_be_clickable((By.CSS_SELECTOR, "span.ng-star-inserted"))
-    )
+    element.find_element(By.XPATH, '//span[contains(@class, "ng-star-inserted")]')
+    # ! WORK HERE !
+    # Попробуем скрыть окно поддержки, если оно есть
+    try:
+        support_window = driver.find_element(By.CLASS_NAME, "intercom-lightweight-app")
+        driver.execute_script("arguments[0].style.display = 'none';", support_window)
+    except Exception:
+        pass  # Если окно поддержки не найдено, продолжаем
     try:
         # Открыть форму в новой вкладке
         element.click()
-    except ElementClickInterceptedException:
-        print("Work ElementClickInterceptedException")
+    except ElementClickInterceptedException as err:
+        print(f"Work ElementClickInterceptedException {err}")
         # Используем JavaScript для клика, если элемент перекрыт
         driver.execute_script("arguments[0].click();", element)
     return driver
@@ -607,16 +608,11 @@ def switch_to_new_tab(driver):
 
 @check_session
 def click_select_form_action(driver, btn_select_form_action):
-    # Скрол до нужного элемента с Python или с Javascript
-    # driver.execute_script("arguments[0].scrollIntoView(true);", btn_open_new_tab)
-    ActionChains(driver).scroll_to_element(btn_select_form_action).perform()
-    # # time.sleep(0.5)
-    # wait.until(EC.element_to_be_clickable((By.XPATH, btn_select_form_action_xpath)))
     try:
         # Открыть форму в новой вкладке
         btn_select_form_action.click()
     except ElementClickInterceptedException:
-        print("Work ElementClickInterceptedException")
+        print("Work click_select_form_action ElementClickInterceptedException")
         # Используем JavaScript для клика, если элемент перекрыт
         driver.execute_script("arguments[0].click();", btn_select_form_action)
     return driver
@@ -704,6 +700,113 @@ def set_data_to_created_inspection(driver):
     return driver
 
 
+def get_photo_contractors_competency(
+    folder_with_data_folders_for_form: str = "inspections",
+) -> tuple[str, ...]:
+    """
+    Функция относительно исполняемого файла возвращает котреж изображений из папки
+    D:\\WORK\\Horand_LTD\\TASKS_DOING_NOW\\side_rise_rain_screen_firebreak_modify\\inspections\\00\\Add Photo Of Contractors comp
+    для загрузки фотографий в поле формы 'Add photo of Contractor’s competency/CSCS card'.
+    """
+    # D:\WORK\Horand_LTD\TASK READY\side_rise_rain_screen_firebreak_modify\inspections
+    folder_with_inspections: Path = Path.cwd() / folder_with_data_folders_for_form
+
+    # Проходим по списку папок в папке
+    # '\D:\WORK\Horand_LTD\TASKS_DOING_NOW\side_rise_rain_screen_firebreak_modify\inspections'
+    for folder in folder_with_inspections.iterdir():
+        # Если полный путь у папки заканчивается на 00
+        if str(folder).endswith("00"):
+            for foler_or_file in folder.iterdir():
+                # 'D:/WORK/Horand_LTD/TASKS_DOING_NOW/side_rise_rain_screen_firebreak_modify/inspections/00/Add Photo Of Contractors comp'
+                if foler_or_file.is_dir():
+                    # Получить последнюю папку в системном пути
+                    # folder_with_images_contractors = 'add photo of contractors comp'
+                    folder_with_images_contractors = foler_or_file.parts[-1].lower()
+                    if str(folder_with_images_contractors).startswith(
+                        "add photo of contractors"
+                    ):
+                        tuple_images_contractors = tuple(
+                            str(img) for img in foler_or_file.iterdir()
+                        )
+                break
+    return tuple_images_contractors
+
+
+@check_session
+def scroll_up_to_element(driver, element):
+    """
+    Проскролить вверх к элементу чтобы его было видно.
+    returns:
+            tuple(drive, webelement)
+    """
+    actions = ActionChains(driver)
+    actions.scroll_to_element(element).perform()
+    actions.scroll_by_amount(0, -300).perform()
+    return driver, element
+
+
+@check_session
+def scroll_down_to_element(driver, element):
+    """
+    Проскролить внизу к элементу чтобы его было видно.
+    returns:
+            tuple(drive, webelement)
+    """
+    actions = ActionChains(driver)
+    actions.scroll_to_element(element).perform()
+    actions.scroll_by_amount(0, 300).perform()
+    return driver, element
+
+
+@check_session
+def fill_photo_contractors_competency(driver, wait):
+    # Кортеж изображений для поля Add photo of Contractor’s competency/CSCS card
+    photo_contractors_competency = get_photo_contractors_competency()
+    # Счетчик для перемещения по кнопкам. Должен увеличиваться на единицу для каждой новой кнопки
+    n_select_file = 1
+    n_add_new_attach = 2
+    last_photo = photo_contractors_competency[-1]
+
+    for img in photo_contractors_competency:
+        # Add photo of Contractor’s competency/CSCS card
+        # Кнопка для выбора фото котрактора
+        click_to_select_file_xpath = f'//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[5]/div/div[2]/div/div[{n_select_file}]/div[2]/inlineattachment/div/label'
+        click_to_select_file = wait.until(
+            EC.visibility_of_element_located((By.XPATH, click_to_select_file_xpath))
+        )
+        if n_select_file == 1:
+            # Прокручиваем вверх к элементу кнопки click_to_select_file
+            driver, click_to_select_file = scroll_up_to_element(
+                driver, click_to_select_file
+            )
+        time.sleep(2)
+        # Элемент для отправки фото в форму
+        input_xpath = f"{click_to_select_file_xpath}/following-sibling::input"
+        input_element = driver.find_element(By.XPATH, input_xpath)
+        # Открыть окно выбора фотографий контрактора
+        # click_to_select_file.click()
+        # Отправить файл изображения контрактора
+        input_element.send_keys(img)
+        time.sleep(1)
+        # Кнопка Add New Attachment
+        btn_add_new_attachment_xpath = f'//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[5]/div/div[2]/div/div[{n_add_new_attach}]/div'
+        btn_add_new_attachment = wait.until(
+            EC.visibility_of_element_located((By.XPATH, btn_add_new_attachment_xpath))
+        )
+        # Прокрутить вниз к кнопке btn_add_new_attachment
+        driver, btn_add_new_attachment = scroll_down_to_element(
+            driver, btn_add_new_attachment
+        )
+        time.sleep(1)
+        if img != last_photo:
+            # Клик по btn_add_new_attachment чтобы появилась новая кнопка для выбора фото
+            btn_add_new_attachment.click()
+            time.sleep(1)
+            n_select_file += 1
+            n_add_new_attach += 1
+    return driver
+
+
 @check_session
 def fill_created_form(driver):
     wait = WebDriverWait(driver, 10)
@@ -720,36 +823,29 @@ def fill_created_form(driver):
         "area_of_inspection": '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[4]/div/div[2]/div/div/div/input',
         "confirm_materials_stored_with_instructions": '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[6]/div/div[2]/div/div/div/input',
     }
-
     # ! Заполнить поле ввода contractors_q_a_form_ref_numb_xpath
     # Contractor’s Quality Assurance form reference number
     contractors_q_a_form_ref_numb = wait.until(
         EC.visibility_of_element_located((By.XPATH, xpaths["ref_numb"]))
     )
-    print(f"{dir(contractors_q_a_form_ref_numb)=}")
     insert_data_into_field(contractors_q_a_form_ref_numb, "BMS01.G01")
-
     # ! Заполнить поле ввода contractors_q_a_form_name_title
     # Contractor’s Quality Assurance form name/title
     contractors_q_a_form_name_title = wait.until(
         EC.visibility_of_element_located((By.XPATH, xpaths["form_name_title"]))
     )
     insert_data_into_field(contractors_q_a_form_name_title, "Quality policy")
-
     # ! Заполнить поле ввода contract_cert
     # Contractor’s certification body
     contract_cert = wait.until(
         EC.visibility_of_element_located((By.XPATH, xpaths["contract_cert"]))
     )
     insert_data_into_field(contract_cert, "IFC Certificate number: IFCC 3054")
-
     # ! Заполнить поле ввода area_of_inspection
     # Area of inspection (please note the gridlines or structural elements to locate this area and floor/level)
     area_of_inspection = driver.find_element(By.XPATH, xpaths["area_of_inspection"])
     driver, location_site_area_text = get_location_site_area(driver)
     insert_data_into_field(area_of_inspection, location_site_area_text)
-
-    # ! WORK HERE !
     # ! Заполнить поле ввода confirm_materials_stored_with_instructions
     # Please confirm that the materials have been stored and protected in accordance with
     # manufacturer’s instructions and the Contractor’s Quality Management System
@@ -759,7 +855,9 @@ def fill_created_form(driver):
         )
     )
     insert_data_into_field(confirm_materials_stored_with_instructions, ".")
-
+    # ! WORK HERE !
+    # Загрузить все фото в поле Add photo of Contractor’s competency/CSCS card
+    driver = fill_photo_contractors_competency(driver, wait)
     # ! Заполнить поле ввода field_to_insert_comment
     # Confirm that a copy of the contractor’s Project Quality Plan (вставляем комментарии в это поле)
     driver, field_to_insert_comment = get_field_to_insert_comment(driver)
@@ -769,22 +867,14 @@ def fill_created_form(driver):
         "H8499-LEM-SW-ZZ-QA-CT-19715 PQP\n"
         "H8499-LEM-SW-ZZ-QA-CO-LM123 ITP\n",
     )
-
-    # Установить дату в календаре 2 Сентября (на пол-года вперед).
+    # ! Установить дату в календаре 2 Сентября (на пол-года вперед).
     driver = set_data_to_created_inspection(driver)
-
-    time.sleep(20)
-
     # Получаем кнопку "Update" и делаем на ней клик
     btn_update_xpath = '//*[@id="btnSaveForm"]'
     btn_update = wait.until(EC.element_to_be_clickable((By.XPATH, btn_update_xpath)))
     btn_update.click()
-    # Ждем пока страница обновится после нажатия кнопки
-    wait.until(
-        EC.text_to_be_present_in_element_attribute(
-            (By.XPATH, "//*[@id='formWrapper']/div[2]"), "class", "loaded"
-        )
-    )
+    driver.switch_to.default_content()
+    time.sleep(2)
     return driver
 
 
@@ -846,7 +936,11 @@ def moving_through_quality_checklist(
                     driver = click_arrow_to_open_block(driver, number_line)
             # ! PROCESS SECTION Level
             elif "level" in location_title:
-                if not number_level_to_start:
+                # Если 6-й этаж то скрипт остановиться
+                if int(location_title[-2:]) > 5:
+                    number_line += 1
+                    continue
+                elif not number_level_to_start:
                     driver = click_arrow_to_open_level(driver, number_line)
                 elif location_title == f"level {number_level_to_start}":
                     number_level_to_start = False
@@ -857,15 +951,26 @@ def moving_through_quality_checklist(
                     not number_plot_to_start
                     or location_title == f"plot {number_plot_to_start}"
                 ):
-                    # # Если 6-й этаж то скрипт остановиться
-                    # # ! REMOVE THIS
-                    # if location_title == "plot 06":
-                    #     break
                     number_plot_to_start = False
 
                     driver, element, edit_or_create = edit_or_create_inspection(
                         driver, number_line
                     )
+                    # Прокрутка к элементу по горизонтали
+                    actions = ActionChains(driver)
+                    actions.scroll_to_element(element).perform()
+                    time.sleep(1)
+                    # Выполнить горизонтальный скролл, чтобы элемент был в центре страницы
+                    driver.execute_script("""
+                        const element = arguments[0];
+                        const rect = element.getBoundingClientRect();
+                        const absoluteElementLeft = rect.left + window.
+                        pageXOffset;
+                        const middle = absoluteElementLeft - (window.innerWidth / 2) + (rect.width / 2);
+                        window.scrollTo({ left: middle, behavior: 'smooth' });
+                    """, element)
+                    time.sleep(1)
+
                     if edit_or_create == "edit":
                         driver = click_card_in_progress(driver, element)
                         # Если открыта новая (вторая) вкладка
@@ -885,8 +990,7 @@ def moving_through_quality_checklist(
                         # ! WORK HERE
                         # Заполнить форму данными (изображениями, документами)
                         driver = fill_created_form(driver)
-
-                        time.sleep(5)
+                        # time.sleep(5)
         number_line += 1
     return driver
 
