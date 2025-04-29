@@ -43,7 +43,8 @@ def initialize_web_driver(site: str) -> webdriver.Chrome:
     service = Service(executable_path=ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
     driver.get(site)
-    driver.set_window_size(1920, 1080)
+    # driver.set_window_size(1920, 1080)
+    driver.maximize_window()
     # Implicit wait for all elements
     driver.implicitly_wait(7)
     # wait = WebDriverWait(driver, 10)
@@ -181,16 +182,17 @@ def insert_data_into_field(field, data: str):
 
 @check_session
 def edit_form(driver):
-    wait = WebDriverWait(driver, 12)
+    wait = WebDriverWait(driver, 5)
     # Получаем кнопку для редактирования формы
     btn_edit_form_xpath = '//*[@id="edit-ori-btn"]/i'
     btn_edit_form = wait.until(
         EC.element_to_be_clickable((By.XPATH, btn_edit_form_xpath))
     )
+    # Клик по кнопке редактирования формы
     btn_edit_form.click()
-    WebDriverWait(driver, 7).until(
-        EC.presence_of_element_located((By.TAG_NAME, "html"))
-    )
+    wait = WebDriverWait(driver, 7)
+    wait.until(EC.presence_of_element_located((By.TAG_NAME, "html")))
+    # Пути к полям
     xpaths = {
         "ref_numb": '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[1]/div/div[2]/div/div/div/input',
         "form_name_title": '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[2]/div/div[2]/div/div/div/input',
@@ -198,8 +200,6 @@ def edit_form(driver):
         "area_of_inspection": '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[1]/div/div/div[4]/div/div[2]/div/div/div/input',
         "check_comment_field": '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[2]/div/div[8]/div/div[2]//div[contains(@class, "comment-section")]',
     }
-
-    wait = WebDriverWait(driver, 7)
     contractors_q_a_form_ref_numb_xpath = xpaths["ref_numb"]
     contractors_q_a_form_name_title_xpath = xpaths["form_name_title"]
     contract_cert_xpath = xpaths["contract_cert"]
@@ -214,7 +214,6 @@ def edit_form(driver):
     )
     if len(contractors_q_a_form_ref_numb.get_attribute("value")) <= 2:
         insert_data_into_field(contractors_q_a_form_ref_numb, "BMS01.G01")
-
     # ! Заполнить поле ввода contractors_q_a_form_name_title
     # Contractor’s Quality Assurance form name/title
     contractors_q_a_form_name_title = wait.until(
@@ -224,7 +223,6 @@ def edit_form(driver):
     )
     if len(contractors_q_a_form_name_title.get_attribute("value")) <= 2:
         insert_data_into_field(contractors_q_a_form_name_title, "Quality policy")
-
     # ! Заполнить поле ввода contract_cert
     # Contractor’s certification body
     contract_cert = wait.until(
@@ -232,7 +230,6 @@ def edit_form(driver):
     )
     if len(contract_cert.get_attribute("value")) <= 2:
         insert_data_into_field(contract_cert, "IFC Certificate number: IFCC 3054")
-
     # ! Заполнить поле ввода area_of_inspection
     # Area of inspection (please note the gridlines or structural elements to locate this area and floor/level)
     area_of_inspection = driver.find_element(By.XPATH, area_of_inspection_xpath)
@@ -249,7 +246,6 @@ def edit_form(driver):
         location_site_area_raw_text = location_site_area_input.get_attribute("value")
         location_site_area_text = " ".join(location_site_area_raw_text.split(">"))
         insert_data_into_field(area_of_inspection, location_site_area_text)
-
     # ! Проверяем поле ввода check_comment_field
     # 2.1 Confirm that a copy of the contractor’s Project Quality Plan
     check_comment_field = driver.find_elements(By.XPATH, check_comment_field_xpath)
@@ -261,10 +257,11 @@ def edit_form(driver):
         btn_create_comment = wait.until(
             EC.element_to_be_clickable((By.XPATH, btn_create_comment_xpath))
         )
-        # Проскролить к кнопке чтобы её было видно и кликнуть по ней
+        # Проскролить к кнопке чтобы её было видно
         actions = ActionChains(driver)
         actions.scroll_to_element(btn_create_comment).perform()
         actions.scroll_by_amount(0, 200).perform()
+        # Клик по кнопке
         btn_create_comment.click()
         # Находим поле комментариев
         field_to_insert_comment_xpath = '//*[@id="custFormTD"]/div[2]/div/section[2]/div[1]/section[2]/div/div[8]/div/div[2]//div[contains(@class, "comment-section")]/div[2]/textarea'
@@ -284,9 +281,9 @@ def edit_form(driver):
     btn_update = wait.until(EC.element_to_be_clickable((By.XPATH, btn_update_xpath)))
     btn_update.click()
     # Ждем пока страница обновится после нажатия кнопки
-    wait.until(
+    WebDriverWait(driver, 15).until(
         EC.text_to_be_present_in_element_attribute(
-            (By.XPATH, "//*[@id='formWrapper']/div[2]"), "class", "loaded"
+            (By.XPATH, '//div[contains(@class, "form-container")]'), "class", "loaded"
         )
     )
     return driver
@@ -294,64 +291,76 @@ def edit_form(driver):
 
 @check_session
 def processs_form_qc4j_side_rise_rain_screen_firebreak(driver):
+    """
+    project_title_xpath = //*[@id="form-holder"]//*[@id="header-section"]/div[1]/h3
+    is_not_editable_inspection_xpath = //*[@id="form-holder"]//div[contains(@class, "dropdown dist-users ng-scope")]
+
+    xpath_elements = //*[@id="form-holder"] //*[@id="formWrapper"]//div[contains(@ng-switch-when, "textbox")]
+    """
+    #
+    # ! WORK HERE !
+    wait = WebDriverWait(driver, 15)
+    xpath_main_element = '//*[@id="form-holder"]'
+    main_element = wait.until(
+        EC.visibility_of_element_located((By.XPATH, xpath_main_element))
+    )
+    print(f"{main_element=}")
+    wait = WebDriverWait(driver, 7)
     project_title_xpath = '//*[@id="header-section"]/div[1]/h3'
-    wait = WebDriverWait(driver, 10)
     project_title = wait.until(
         EC.visibility_of_element_located((By.XPATH, project_title_xpath))
     )
+    project_title_text = project_title.text.lower()
+    print(f"{project_title_text=}")
+
     # Проверить является ли страница редактируемой
     try:
         is_not_editable_inspection_xpath = (
-            '//*[@id="form-holder"]/div[1]/div[2]/div/div'
+            '//div[contains(@class, "dropdown dist-users ng-scope")]'
         )
-        is_not_editable_inspection = WebDriverWait(driver, 1).until(
-            EC.visibility_of_element_located(
-                (By.XPATH, is_not_editable_inspection_xpath)
-            )
+        is_not_editable_inspection = main_element.find_element(
+            By.XPATH, is_not_editable_inspection_xpath
         )
     except Exception:
         # Если элемента is_not_editable_inspection_xpath нет на странице, значит она редактируемая
         is_not_editable_inspection = False
+        print(f"{is_not_editable_inspection=}")
     else:
+        time.sleep(2)
         # Если страница не редактируемая то закрыть её и вернуться на главную страницу
-        print(f"{bool(is_not_editable_inspection)=}")
+        print(f"Cтраница не редактируемая {bool(is_not_editable_inspection)=}")
         main_tab = driver.window_handles[0]
         driver.close()
+        # Перейти на главную страницу
         driver.switch_to.window(main_tab)
         return driver
     # Проверить что открыта форма правильного столбца
-    if "qc4j side-rise rain-screen firebreak" in project_title.text.lower():
+    if "qc4j side-rise rain-screen firebreak" in project_title_text:
+        fields_xpath = (
+            '//*[@id="formWrapper"]//div[contains(@ng-switch-when, "textbox")]'
+        )
+        fields = main_element.find_elements(By.XPATH, fields_xpath)
         # Contractor’s Quality Assurance form reference number
-        form_number_xpath = '//*[@id="formWrapper"]/div[2]/section[2]/section[1]/div/div/div[1]/div/div[2]/div/div/div'
-        # form_number = wait.until(
-        #     EC.visibility_of_element_located((By.XPATH, form_number_xpath))
-        # )
-        form_number = driver.find_element(By.XPATH, form_number_xpath)
-
+        form_number = fields[0].text
         # Contractor’s Quality Assurance form name/title
-        form_name_title_xpath = '//*[@id="formWrapper"]/div[2]/section[2]/section[1]/div/div/div[2]/div/div[2]/div/div/div'
-        # form_name = wait.until(
-        #     EC.visibility_of_element_located((By.XPATH, form_name_xpath))
-        # )
-        form_name_title = driver.find_element(By.XPATH, form_name_title_xpath)
-
+        form_name_title = fields[1].text
         # Contractor’s certification body
-        contract_cert_xpath = '//*[@id="formWrapper"]/div[2]/section[2]/section[1]/div/div/div[3]/div/div[2]/div/div/div'
-        # contract_cert = wait.until(
-        #     EC.visibility_of_element_located((By.XPATH, contract_cert_xpath))
-        # )
-        contract_cert = driver.find_element(By.XPATH, contract_cert_xpath)
-
+        contract_cert = fields[2].text
         # Area of inspection (please note the gridlines or structural elements to locate this area and floor/level)
-        area_of_inspect_xpath = '//*[@id="formWrapper"]/div[2]/section[2]/section[1]/div/div/div[4]/div/div[2]/div/div/div'
-        # area_of_inspect = wait.until(
-        #     EC.visibility_of_element_located((By.XPATH, area_of_inspect_xpath))
-        # )
-        area_of_inspect = driver.find_element(By.XPATH, area_of_inspect_xpath)
-
-        # 2.1 Confirm that a copy of the contractor’s Project Quality Plan
-        comment_xpath = '//*[@id="formWrapper"]/div[2]/section[2]/section[2]/div/div[8]//div[contains(@class, "comment-section")]'
-        comments = driver.find_elements(By.XPATH, comment_xpath)
+        area_of_inspect = fields[3].text
+        # print(f"{form_number=}")
+        # print(f"{form_name_title=}")
+        # print(f"{contract_cert=}")
+        # print(f"{area_of_inspect=}")
+        try:
+            driver.implicitly_wait(1)
+            # 2.1 Confirm that a copy of the contractor’s Project Quality Plan
+            comment_xpath = '//div[contains(@class, "comment-section")]'
+            comments = main_element.find_element(By.XPATH, comment_xpath).text
+            print(f"{comments=}")
+        except Exception:
+            comments = ""
+            print(f"There is no comments: {comments=}. Error in search comments field.")
         # Проверяем поля ввода на отсутствие текста
         elements_to_check_for_edit = (
             form_number,
@@ -360,10 +369,7 @@ def processs_form_qc4j_side_rise_rain_screen_firebreak(driver):
             area_of_inspect,
             comments,
         )
-        is_edit = any(
-            len(element) == 0 if type(element) is list else len(element.text) <= 2
-            for element in elements_to_check_for_edit
-        )
+        is_edit = any(len(element) <= 2 for element in elements_to_check_for_edit)
         # Если хоть одне полне не заполнено, а содержит лишь точку и возможно пробел то редактировать
         if is_edit:
             # ВНЕСЕНИЕ ИНФЫ В ФОРМУ
@@ -381,15 +387,14 @@ def get_location_title(driver, number_line):
     Функция получает название объекта в таблице сайта (дом или этаж или квартира)
     """
     wait = WebDriverWait(driver, 20)
+    # f'//*[@id="table_body_header_scroller"]/div/div[{number_line}]'
     location_cell_xpath = (
-        f'//*[@id="table_body_header_scroller"]/div/div[{number_line}]'
+        f'//*[@id="table_body_header_scroller"]/div/div[{number_line}]//div[contains(@class, "location-title")]'
     )
     location_cell = wait.until(
         EC.visibility_of_element_located((By.XPATH, location_cell_xpath))
     )
-    location_title = location_cell.find_element(
-        By.CLASS_NAME, "location-title"
-    ).get_attribute("title")
+    location_title = location_cell.get_attribute("title")
     return (driver, location_title)
 
 
@@ -561,7 +566,7 @@ def get_number_plot_to_start():
             get_number_level = True
             print(f"\nYou enter number_plot_to_start: {number_plot_to_start}")
             print(
-                f"The program will start working from the level with the number {number_plot_to_start}"
+                f"The program will start working from the plot with the number {number_plot_to_start}"
             )
         elif len(number_plot_to_start) == 0:
             get_number_level = True
@@ -873,6 +878,7 @@ def fill_created_form(driver):
     btn_update_xpath = '//*[@id="btnSaveForm"]'
     btn_update = wait.until(EC.element_to_be_clickable((By.XPATH, btn_update_xpath)))
     btn_update.click()
+    time.sleep(3)
     driver.switch_to.default_content()
     time.sleep(2)
     return driver
@@ -883,7 +889,7 @@ def edit_or_create_inspection(driver, number_line):
     Функция определяет что делать - редактировать инспекцию или создавать с ноля.
     Возвращает
     """
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 5)
     element_xpath = (
         f'//*[@id="table_body_content_scroller"]/div/div[{number_line}]/div/div[36]'
     )
@@ -923,6 +929,7 @@ def moving_through_quality_checklist(
     while stop_word:
         # Получить название текущей ячейки - Block, Level (этаж), Plot (квартира)
         driver, location_title = get_location_title(driver, number_line)
+        # Выполнить скролл к ячейке
         driver = scroll_to_location_title(driver, number_line)
         if type(location_title) is str:
             location_title = location_title.lower()
@@ -936,7 +943,7 @@ def moving_through_quality_checklist(
                     driver = click_arrow_to_open_block(driver, number_line)
             # ! PROCESS SECTION Level
             elif "level" in location_title:
-                # Если 6-й этаж то скрипт остановиться
+                # Скрипт пропускает все этажи после 5-го
                 if int(location_title[-2:]) > 5:
                     number_line += 1
                     continue
@@ -961,14 +968,17 @@ def moving_through_quality_checklist(
                     actions.scroll_to_element(element).perform()
                     time.sleep(1)
                     # Выполнить горизонтальный скролл, чтобы элемент был в центре страницы
-                    driver.execute_script("""
+                    driver.execute_script(
+                        """
                         const element = arguments[0];
                         const rect = element.getBoundingClientRect();
                         const absoluteElementLeft = rect.left + window.
                         pageXOffset;
                         const middle = absoluteElementLeft - (window.innerWidth / 2) + (rect.width / 2);
                         window.scrollTo({ left: middle, behavior: 'smooth' });
-                    """, element)
+                    """,
+                        element,
+                    )
                     time.sleep(1)
 
                     if edit_or_create == "edit":
@@ -986,11 +996,10 @@ def moving_through_quality_checklist(
                         driver = click_select_form_action(driver, element)
                         # Клик на кнопке создать форму
                         driver = click_btn_create_form(driver)
-
                         # ! WORK HERE
                         # Заполнить форму данными (изображениями, документами)
                         driver = fill_created_form(driver)
-                        # time.sleep(5)
+                        time.sleep(2)
         number_line += 1
     return driver
 
